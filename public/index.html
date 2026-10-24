@@ -442,7 +442,7 @@ function drawBubble() {
   if (!BUB) return; const b = BUB; let [hx, hy] = headOf(b.who);
   ctx.save(); ctx.font = "30px 'Patrick Hand','Comic Sans MS',cursive"; const lines = wrapText(b.text, 440); const lh = 34;
   const bw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 44, nameH = b.name ? 28 : 0, bh = lines.length * lh + 26 + nameH;
-  let bx = clamp(hx - bw / 2, 12, W - bw - 12), by = clamp(hy - bh - 34, 10, H - bh - 10);
+  let bx = clamp(hx - bw / 2, 12, W - bw - 12), by = clamp(hy - bh - 34, 96, H - bh - 10);
   const tailX = clamp(hx, bx + 24, bx + bw - 24);
   const pop = Math.min(1, (performance.now() - b.t0) / 120);
   ctx.translate(tailX, by + bh); ctx.scale(0.8 + 0.2 * pop, 0.8 + 0.2 * pop); ctx.translate(-tailX, -(by + bh));
@@ -1609,20 +1609,49 @@ async function netConnect(code) {
   try { GR = await wsJoin('martin-' + code.toLowerCase()); }
   catch (e) { GR = null; return e && e.code === 'no_server' ? 'El modo dúo funciona abriendo el juego desde su enlace del servidor.' : 'No puedo conectar con el servidor. Si es la primera partida del día, espera un minuto (se está despertando) y vuelve a probar.'; }
   GR.on('flags', m => { if (m.sameTab) return; netApply(m.data); });
-  GR.on('give', m => { const d = m.data || {}; if (!ITEMS[d.item]) return; if (m.sameTab) { take(d.item); SFX.pick(); LABEL = { text: `Le has dado ${ITEMS[d.item].n} a ${mateName()}`, until: performance.now() + 2500 }; save(); return; } if (d.to !== ME) return; if (!has(d.item)) S.inv.push(d.item); SFX.pick(); LABEL = { text: `${mateName()} te ha dado: ${ITEMS[d.item].n}`, until: performance.now() + 3000 }; save(); });
+  GR.on('give', m => { const d = m.data || {}; if (!ITEMS[d.item] || m.sameTab || d.to !== ME) return; if (!has(d.item)) S.inv.push(d.item); SFX.pick(); LABEL = { text: `${mateName()} te ha dado: ${ITEMS[d.item].n}`, until: performance.now() + 3000 }; save(); GR.emit('got', { to: m.peer, item: d.item }).catch(() => {}); });
+  GR.on('got', m => { const d = m.data || {}; if (!ITEMS[d.item] || m.sameTab || d.to !== ME) return; take(d.item); SFX.pick(); LABEL = { text: `Le has dado ${ITEMS[d.item].n} a ${mateName()}`, until: performance.now() + 2500 }; save(); });
   GR.on('hello', m => { if (m.sameTab) return; if (HOST) { NETDIRTY = true; netSendFlags(); } });
   GR.onPeers(ch => { const me = ch.peers.find(p => p.sameTab); if (me) ME = me.peer; if (ch.joined.some(p => !p.sameTab) && HOST) netSendFlags(); if (ch.left.some(p => !p.sameTab) && G.playing) LABEL = { text: `${mateName()} se ha desconectado`, until: performance.now() + 3000 }; });
   return null;
 }
 let MATEINV = null, MATEGONE = null;
-// rescate: si el cubo se ha perdido (y ya se cogió), aparece uno nuevo
-const CUBOS = ['cubo', 'cubo_agua', 'cubo_hirviendo'];
-function rescueCubo() {
-  if (!G.playing || G.cut || !S.f.cubo || CUBOS.some(has)) return;
-  if (duo()) { const m = mate(); if (!m) return; const mi = Array.isArray(m.presence.inv) ? m.presence.inv : []; if (CUBOS.some(c => mi.includes(c))) return; }
-  S.inv.unshift('cubo'); SFX.pick(); LABEL = { text: '¡Has recuperado el cubo!', until: performance.now() + 3500 }; save();
+// rescate: si un objeto imprescindible se ha perdido y nadie lo tiene, vuelve a aparecer
+const RESCUE = [
+  ['cuchara', ['cuchara'], () => F.cuchara && !F.tarro],
+  ['queso', ['queso'], () => F.tarro && !F.trap],
+  ['cubo', ['cubo', 'cubo_agua', 'cubo_hirviendo'], () => F.cubo],
+  ['esponja', ['esponja', 'espejo'], () => F.esponja && !F.susi],
+  ['linterna', ['linterna', 'linterna_on'], () => F.linterna && !F.luz],
+  ['pilas', ['pilas', 'linterna_on'], () => F.pilas && !F.luz],
+  ['llave_hierro', ['llave_hierro'], () => F.llave1 && !F.reja],
+  ['ketchup', ['ketchup', 'copa_sangre'], () => F.ketchup && !F.vamp],
+  ['cortapizzas', ['cortapizzas'], () => F.corta && !F.movil],
+  ['llave_dorada', ['llave_dorada'], () => F.llave2 && !F.cajaOpen],
+  ['llave_teatro', ['llave_teatro'], () => F.llave3 && !F.escalera],
+  ['espejo_sucio', ['espejo_sucio', 'espejo'], () => F.espejo && !F.susi],
+  ['copa', ['copa', 'copa_sangre'], () => F.copa && !F.vamp],
+  ['escoba', ['escoba'], () => F.escoba && !F.jaula],
+  ['manivela', ['manivela'], () => F.caja && !F.llaveJaula],
+  ['moneda', ['moneda'], () => F.moneda && !F.chicle],
+  ['chicle', ['chicle', 'chicle_mascado'], () => F.chicle && !F.payaso],
+  ['cerillas', ['cerillas'], () => F.cerillas && !F.coco],
+  ['tijeras', ['tijeras'], () => F.tijeras && !F.gato],
+  ['disco', ['disco'], () => F.disco && !F.discoPuesto],
+  ['disfraz', ['disfraz'], () => F.baul && !F.llaveJaula && !F.disfraz && !(duo() && mate() && mate().presence.ds)],
+  ['llave_jaula', ['llave_jaula'], () => F.llaveJaula && !F.candado],
+];
+function rescueItems() {
+  if (!G.playing || G.cut || G.busy || G.dead) return;
+  let mi = [];
+  if (duo()) { const m = mate(); if (!m || !HOST) return; mi = Array.isArray(m.presence.inv) ? m.presence.inv : []; }
+  for (const [give, vars, need] of RESCUE) {
+    let ok = false; try { ok = need(); } catch (e) {}
+    if (!ok || vars.some(v => has(v) || mi.includes(v))) continue;
+    S.inv.push(give); SFX.pick(); LABEL = { text: `¡Has recuperado: ${ITEMS[give].n}!`, until: performance.now() + 3500 }; save();
+  }
 }
-setInterval(() => { try { rescueCubo(); } catch (e) {} }, 3000);
+setInterval(() => { try { rescueItems(); } catch (e) {} }, 3000);
 function netWatchMate() {
   const m = mate(); if (m) { MATEINV = Array.isArray(m.presence.inv) ? m.presence.inv.filter(i => ITEMS[i]) : MATEINV; MATEGONE = null; return; }
   if (!MATEINV || !MATEINV.length) return; if (!MATEGONE) { MATEGONE = performance.now(); return; }
@@ -1652,7 +1681,7 @@ function drawPeerBubble() {
   const rec = PSAY[m.peer] || (PSAY[m.peer] = { n: -1, t0: 0 }); if (rec.n !== pr.sayN) { rec.n = pr.sayN; rec.t0 = performance.now(); }
   if (pr.room !== S.room || performance.now() - rec.t0 > Math.max(2200, pr.say.length * 55)) return;
   const feet = R.feet || FEET; ctx.save(); ctx.font = "26px 'Patrick Hand',cursive"; const lines = wrapText(pr.say, 360); const bw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 34, bh = lines.length * 30 + 44;
-  const bx = clamp(pr.x - bw / 2, 10, W - bw - 10), by = clamp(feet - 300 - bh, 10, H - bh); rr(bx, by, bw, bh, 18, pr.ch === 'g' ? '#e6fff7' : '#fff0f4', '#000', 4);
+  const bx = clamp(pr.x - bw / 2, 10, W - bw - 10), by = clamp(feet - 300 - bh, 96, H - bh); rr(bx, by, bw, bh, 18, pr.ch === 'g' ? '#e6fff7' : '#fff0f4', '#000', 4);
   ctx.font = "20px 'Creepster',Impact,fantasy"; ctx.fillStyle = '#c8102e'; ctx.textAlign = 'left'; ctx.fillText(CHN[pr.ch], bx + 16, by + 24); ctx.font = "26px 'Patrick Hand',cursive"; ctx.fillStyle = '#140c0c'; ctx.textAlign = 'center'; lines.forEach((l, i) => ctx.fillText(l, bx + bw / 2, by + 50 + i * 30)); ctx.restore();
 }
 function drawDuoBanner() {
@@ -1855,6 +1884,12 @@ function arrow(x, y, dir, t) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.scale(k, k); ctx.globalAlpha = 0.9;
   poly([[-26, -12], [6, -12], [6, -30], [34, 0], [6, 30], [6, 12], [-26, 12]], '#fff8e8', '#000', 5); ctx.restore();
 }
+function drawGlow(t) {
+  const p = 0.5 + 0.5 * Math.sin(t * 3);
+  for (const h of visibleHS()) { if (h.exit || h.noWalk || h.noGlow) continue; const r = rectOf(h); if (r[2] * r[3] > 300000) continue;
+    const hov = hoverHS === h; ctx.save(); ctx.lineWidth = hov ? 5 : 3; ctx.strokeStyle = `rgba(70,160,255,${hov ? 0.95 : 0.35 + 0.3 * p})`; ctx.shadowColor = 'rgba(40,130,255,.9)'; ctx.shadowBlur = hov ? 18 : 8 + 6 * p;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(r[0], r[1], r[2], r[3], 14) : ctx.rect(r[0], r[1], r[2], r[3]); ctx.stroke(); ctx.restore(); }
+}
 function drawMarks(t) {
   for (const h of visibleHS()) { if (!h.mark) continue; const [x, y] = h.mark; const k = 1 + 0.12 * Math.sin(t * 5), s = 22 * k;
     ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.55); ctx.lineCap = 'round';
@@ -1925,7 +1960,7 @@ function render(t) {
     const bgk = typeof R.bg === 'function' ? R.bg() : R.bg;
     if (bgk && IMG[bgk]) ctx.drawImage(IMG[bgk][0].im, 0, 0, W, H); else if (R.ph) drawPH(R.ph, t);
     if (R.back) R.back(t);
-    if (!G.cut) { drawMarks(t); drawExits(t); }
+    if (!G.cut) { drawGlow(t); drawMarks(t); drawExits(t); }
     drawBlock();
     const L = (R.layer ? R.layer(t) : []).slice(); L.push({ y: C.feet + 0.5, d: () => drawCarmen(t) }); netLayer(L, t);
     L.sort((a, b) => a.y - b.y).forEach(o => o.d());
