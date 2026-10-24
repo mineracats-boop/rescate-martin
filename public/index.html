@@ -681,7 +681,7 @@ const ROOMS = {
     bg: 'bg_r2',
     init() { R.st = { ti: F.trap ? 3 : 0, flip: false, tx: F.trap ? 720 : 905 }; },
     block: { x: 760, side: 1, on: () => !F.trap, kill: async () => { R.st.ti = 1; R.st.flip = true; SFX.glitch(); await wait(250); R.st.ti = 2; SFX.clank(); shake(20); await wait(200); await die(0, 'La ratonera gigante te ha hecho puré. Literal.', 'trap'); } },
-    layer(t) { const l = [{ y: 655, d: () => spr('trap', R.st.ti, R.st.tx, 655, { s: 1.15, flip: R.st.flip, sy: R.st.ti === 0 ? 1 + 0.02 * Math.sin(t * 3) : 1 }) }]; if (R.st.cheese) l.push({ y: 640, d: () => drawItem('queso', 690, 625, 60) }); return l; },
+    layer(t) { const l = [{ y: 655, d: () => spr('trap', R.st.ti, R.st.tx, 655, { s: 1.15, flip: R.st.flip, sy: R.st.ti === 0 ? 1 + 0.02 * Math.sin(t * 3) : 1 }) }]; if (R.st.cheese) l.push({ y: 640, d: () => drawItem('queso', 585, 600, 60) }); return l; },
     hs: [
       { id: 'trap', name: 'Ratonera viviente', r: () => sprRect('trap', R.st.ti, R.st.tx, 655, 1.15), at: 640,
         look: () => say(F.trap ? 'Se ha quedado K.O. abrazada al queso.' : 'Una ratonera gigante con patas… y con hambre. ¡Y yo pensaba que el que tenía que tenerles miedo era Martín!'),
@@ -689,7 +689,7 @@ const ROOMS = {
         mouth: async () => { if (F.trap) return say('Ni caso. Está frita.'); await say('¡Bu!'); R.st.ti = 1; SFX.clank(); shake(8); await wait(500); R.st.ti = 0; await say('Vale, vale… no le gusta que le hablen.'); },
         use: { queso: async () => { if (F.trap) return; await say('¡Toma, bonita! Abre la boquita…'); R.st.ti = 1; SFX.clank(); await wait(200); R.st.ti = 2; shake(20); await die(0, 'La ratonera no distingue entre un queso y la mano que lo sujeta.', 'trap'); } },
         useAny: () => say('No creo que se coma eso.') },
-      { id: 'suelo', name: 'Suelo', r: [560, 600, 200, 100], show: () => !F.trap, at: 600,
+      { id: 'suelo', name: 'Suelo', r: [470, 565, 230, 80], show: () => !F.trap, at: 560, mark: [585, 600],
         look: () => say('Suelo de piedra lleno de migas y marcas de dientes. Aquí come alguien. Mucho.'),
         hand: () => say('Frío y pegajoso.'), mouth: () => say('No pienso lamer el suelo.'),
         use: { queso: async () => { take('queso'); C.ov = { key: 'c_act', i: 1 }; await wait(450); C.ov = null; R.st.cheese = 1; await walkTo(480); await say('Ahí te lo dejo… y yo, lejos.'); await wait(500); SFX.step(); await tween(R.st, 'tx', 720, 700); R.st.ti = 1; await wait(250); R.st.ti = 2; SFX.clank(); shake(16); R.st.cheese = 0; await wait(400); R.st.ti = 3; F.trap = true; SFX.thud(); await say('¡Ñam! Se ha zampado el queso de golpe… y se ha quedado atascada con la boca cerrada. ¡Ja!'); } } },
@@ -1837,6 +1837,13 @@ function arrow(x, y, dir, t) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.scale(k, k); ctx.globalAlpha = 0.9;
   poly([[-26, -12], [6, -12], [6, -30], [34, 0], [6, 30], [6, 12], [-26, 12]], '#fff8e8', '#000', 5); ctx.restore();
 }
+function drawMarks(t) {
+  for (const h of visibleHS()) { if (!h.mark) continue; const [x, y] = h.mark; const k = 1 + 0.12 * Math.sin(t * 5), s = 22 * k;
+    ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.55); ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.35 + 0.2 * Math.sin(t * 5); ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, 0, s * 1.7, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+    for (const [w, c] of [[14, '#000'], [8, '#ff2a3a']]) { ctx.lineWidth = w; ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(-s, -s); ctx.lineTo(s, s); ctx.moveTo(s, -s); ctx.lineTo(-s, s); ctx.stroke(); }
+    ctx.restore(); }
+}
 function drawExits(t) {
   for (const h of visibleHS()) { if (!h.exit || !h.arrow) continue; const r = rectOf(h); let x = r[0] + r[2] / 2, y = r[1] + r[3] / 2; if (h.arrow === 'down') y = r[1] + r[3] - 34; arrow(x, y, h.arrow, t); }
 }
@@ -1898,7 +1905,7 @@ function render(t) {
     const bgk = typeof R.bg === 'function' ? R.bg() : R.bg;
     if (bgk && IMG[bgk]) ctx.drawImage(IMG[bgk][0].im, 0, 0, W, H); else if (R.ph) drawPH(R.ph, t);
     if (R.back) R.back(t);
-    if (!G.cut) drawExits(t);
+    if (!G.cut) { drawMarks(t); drawExits(t); }
     drawBlock();
     const L = (R.layer ? R.layer(t) : []).slice(); L.push({ y: C.feet + 0.5, d: () => drawCarmen(t) }); netLayer(L, t);
     L.sort((a, b) => a.y - b.y).forEach(o => o.d());
