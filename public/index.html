@@ -12,7 +12,7 @@
   --u:1px; color-scheme:dark;
 }
 [hidden]{display:none!important}
-html,body{height:100%;background:var(--void);color:var(--ink)}
+html,body{height:100%;background:var(--void);color:var(--ink);overflow:hidden}
 body{margin:0;overflow:hidden;font-family:var(--f-body);display:flex;align-items:center;justify-content:center;
   padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));box-sizing:border-box;
   -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
@@ -516,7 +516,7 @@ function act(hs, verb, item) {
     const r = rectOf(hs); face(r[0] + r[2] / 2);
     if (hs.exit && verb === 'go') {
       const lk = hs.lock && hs.lock();
-      if (lk && hs.id === 'rejilla' && duo()) { if (!mateHere()) return say(`Pesa una barbaridad. Necesito a ${mateName()}: uno tira y el otro hace palanca con algo largo.`); return holdFor('rejilla', 9000, '¡Tirando de la rejilla!', `¡Yo tiro de la rejilla! ¡Haz palanca, ${mateName()}!`); }
+      if (lk && hs.id === 'rejilla' && pair()) { if (!mateHere()) return say(`Pesa una barbaridad. Necesito a ${mateName()}: uno tira y el otro hace palanca con algo largo.`); return holdFor('rejilla', 9000, '¡Tirando de la rejilla!', `¡Yo tiro de la rejilla! ¡Haz palanca, ${mateName()}!`); }
       if (lk) { await say(lk); return; }
       await goto(hs.to, hs.ex, {}); return;
     }
@@ -595,7 +595,7 @@ function load(k) { try { return JSON.parse(localStorage.getItem(k || SKEY()) || 
 function wipe() { try { localStorage.removeItem(SKEY()); } catch (e) {} }
 
 // =================== SALAS ===================
-const coldTap = () => duo() ? mateHolding('caldera') : !!F.caldera;
+const coldTap = () => pair() ? mateHolding('caldera') : !!F.caldera;
 const actorsLayer = list => list.filter(a => !a.hidden).map(a => ({ y: a.feet, d: () => { if (a.draw) a.draw(performance.now() / 1000); else spr(a.key, a.i, a.x, a.feet, { s: a.s || 1, flip: a.flip, a: a.a, sy: a.breath ? 1 + 0.015 * Math.sin(performance.now() / 450) : 1 }); } }));
 function timedDeath(type, msg, mon) { G.busy = true; die(type, msg, mon).catch(() => {}); }
 function scareDeath(drawFn, type, msg, mon) { G.scare = { draw: drawFn, t0: performance.now() }; SFX.scream(); shake(30); flash('#fff', 0.8); setTimeout(() => { G.scare = null; }, 1100); G.busy = true; die(type, msg, mon).catch(() => {}); }
@@ -922,7 +922,7 @@ const ROOMS = {
       { id: 'caja', name: 'Caja de música', r: [90, 300, 110, 90], at: 250,
         look: () => say(F.muneca ? 'La caja de música sigue sonando. En la tapa hay notas grabadas: SOL · MI · DO · MI.' : F.cajaOpen ? 'La caja está abierta, pero muda. Tiene una ruedecita en un lado y notas grabadas en la tapa: SOL · MI · DO · MI.' : 'Una caja de música con una cerradura dorada pequeñita.'),
         hand: async () => { if (F.muneca) return say('Mejor la dejo sonando.'); if (!F.cajaOpen) return say('Está cerrada con llave.');
-          if (duo() && !mateHolding('caja')) { if (!mateHere()) return say(`La ruedecita está atascada y la caja se mueve. Si ${mateName()} la sujetara, podría darle cuerda…`); return holdFor('caja', 9000, '¡Sujetando la caja!', `¡Yo sujeto la caja, ${mateName()}! ¡Dale cuerda cuando la muñeca no mire!`); }
+          if (pair() && !mateHolding('caja')) { if (!mateHere()) return say(`La ruedecita está atascada y la caja se mueve. Si ${mateName()} la sujetara, podría darle cuerda…`); return holdFor('caja', 9000, '¡Sujetando la caja!', `¡Yo sujeto la caja, ${mateName()}! ¡Dale cuerda cuando la muñeca no mire!`); }
           C.ov = { key: 'c_act', i: 3 }; SFX.tick(); await wait(160); SFX.tick(); await wait(160); SFX.creak(); C.ov = null; if (R.st.ph !== 'back') { await ROOMS.r10.scare(); return; } F.cuerda = (F.cuerda || 0) + 1; if (F.cuerda < 3) return say(F.cuerda === 1 ? 'Cric, cric… Le he dado un poco de cuerda. Hace un ruidito…' : 'Cric, cric… Un poquito más.'); SFX.musicbox(); await wait(1200); await say('Mmm… esa canción… me da… taaanto… sueño… zzz…', { x: 820, feet: 655, h: 360, name: 'Madame Porcelana', col: '#ffe3ef' }); F.muneca = true; await say('¡Se ha dormido! Y lleva una llave colgada del cuello…'); },
         mouth: () => say('La-la-laaa… No, no suena sola.'),
         use: { llave_dorada: async () => { await useAnim(); SFX.unlock(); take('llave_dorada'); F.cajaOpen = true; await say('¡Abierta! Pero no suena… está sin cuerda.'); } } },
@@ -1061,8 +1061,8 @@ const ROOMS = {
       { id: 'gato', name: CAT_NAME, r: () => sprRect('cat', R.st.ci, 930, 500), at: 760,
         look: () => say(F.gato ? 'Un montón de marioneta sin hilos. Ya no da tanto miedo.' : 'El gato marioneta. Se mueve con unos hilos que bajan del techo. Si no tuviera hilos…'),
         hand: async () => { if (F.gato) return say('Mejor no lo toco, por si acaso.'); R.st.ci = 2; SFX.laugh(); await wait(300); shake(20); await die(0, 'El gato te ha aplastado con su pata gigante. Las marionetas pegan fuerte.', 'cat'); },
-        mouth: async () => { const cat = { x: 930, feet: 500, h: 480, name: CAT_NAME, col: '#ffe0e4' }; if (duo() && !F.gato) { R.st.ci = 1; SFX.laugh(); return holdFor('gato', 8000, '¡Distrayendo al gato!', pick(['¡EH, GATO PULGOSO! ¡Mírame a mí! ¡Tu espectáculo es un rollo!', '¡Oye, minino! ¡Tienes los bigotes torcidos! ¡Aquí, aquí!', '¡Gato de pacotilla! ¡A que no me pillas!'])); } if (F.gato) { await say('Mis hiiilos… mis preciosos hiiilos…', { ...cat, h: 150 }); return; } await say(pick(['¿Por qué te llevaste a Martín?', '¡Eres un gato de pacotilla!', '¿Quién te ha atado esos hilos? ¿Tu madre?'])); R.st.ci = 1; SFX.laugh(); await say(pick(['Porque es el ratón más bonito del mundo. Y a los gatos nos encantan los ratones. Jejeje.', '¡Pacotilla dice! ¡Soy una estrella!', 'Sin mis hilos no sería nada… ¡Pero nadie puede cortarlos! Jejeje.']), cat); R.st.ci = 0; },
-        use: { tijeras: async () => { if (F.gato) return; if (duo() && !mateHolding('gato')) { await say('¡Te estoy viendo! ¡Nadie toca mis hilos mientras yo miro!', { x: 930, feet: 500, h: 480, name: CAT_NAME, col: '#ffe0e4' }); await ROOMS.r15.zarpa(); return; } TIMER = null; await useAnim(250); for (let i = 0; i < 3; i++) { SFX.snip(); flash('#fff', 0.4); await wait(260); } R.st.ci = 3; SFX.thud(); SFX.clank(); shake(26); F.gato = true; await say('¡NOOOO! ¡Mis hiiilos! ¡Sin hilos no soy naaada…!', { x: 930, feet: 500, h: 160, name: CAT_NAME, col: '#ffe0e4' }); await say('¡Toma! ¡Snip, snip! Y ahora… ¡Martín!'); } },
+        mouth: async () => { const cat = { x: 930, feet: 500, h: 480, name: CAT_NAME, col: '#ffe0e4' }; if (pair() && !F.gato) { R.st.ci = 1; SFX.laugh(); return holdFor('gato', 8000, '¡Distrayendo al gato!', pick(['¡EH, GATO PULGOSO! ¡Mírame a mí! ¡Tu espectáculo es un rollo!', '¡Oye, minino! ¡Tienes los bigotes torcidos! ¡Aquí, aquí!', '¡Gato de pacotilla! ¡A que no me pillas!'])); } if (F.gato) { await say('Mis hiiilos… mis preciosos hiiilos…', { ...cat, h: 150 }); return; } await say(pick(['¿Por qué te llevaste a Martín?', '¡Eres un gato de pacotilla!', '¿Quién te ha atado esos hilos? ¿Tu madre?'])); R.st.ci = 1; SFX.laugh(); await say(pick(['Porque es el ratón más bonito del mundo. Y a los gatos nos encantan los ratones. Jejeje.', '¡Pacotilla dice! ¡Soy una estrella!', 'Sin mis hilos no sería nada… ¡Pero nadie puede cortarlos! Jejeje.']), cat); R.st.ci = 0; },
+        use: { tijeras: async () => { if (F.gato) return; if (pair() && !mateHolding('gato')) { await say('¡Te estoy viendo! ¡Nadie toca mis hilos mientras yo miro!', { x: 930, feet: 500, h: 480, name: CAT_NAME, col: '#ffe0e4' }); await ROOMS.r15.zarpa(); return; } TIMER = null; await useAnim(250); for (let i = 0; i < 3; i++) { SFX.snip(); flash('#fff', 0.4); await wait(260); } R.st.ci = 3; SFX.thud(); SFX.clank(); shake(26); F.gato = true; await say('¡NOOOO! ¡Mis hiiilos! ¡Sin hilos no soy naaada…!', { x: 930, feet: 500, h: 160, name: CAT_NAME, col: '#ffe0e4' }); await say('¡Toma! ¡Snip, snip! Y ahora… ¡Martín!'); } },
         useAny: () => say('Eso no le hace nada. Sus hilos son su punto fuerte… y su punto débil.') },
       { id: 'jaula', name: '¡Martín!', r: () => [550, R.st.cy - 230, 180, 230], show: () => R.st.cageVis, at: 540,
         look: () => say('¡MARTÍN! Está metido en una jaula colgada del techo. ¡Aguanta, Martín!'),
@@ -1154,7 +1154,7 @@ const ROOMS = {
       { id: 'caldera', name: 'Caldera', r: [100, 20, 200, 410], at: 260, look: () => say(F.caldera ? 'Una caldera enorme, apagada.' : 'Una caldera enorme de cobre. Echa humo por todas partes.'), hand: () => say(F.caldera ? 'Está tibia.' : '¡Quema! ¡Quema!'), mouth: () => say('Ni loca chupo una caldera.') },
       { id: 'valvula', name: 'Rueda roja', r: [148, 218, 72, 72], at: 260,
         look: () => say(F.caldera ? 'La rueda de la caldera, cerrada. La caldera duerme.' : 'Una rueda roja en la caldera. La caldera ruge como un dragón.'),
-        hand: async () => { if (duo()) { if (!mateHere()) return say(`La rueda está durísima y en cuanto la suelto vuelve a abrirse sola. Necesito a ${mateName()}: uno la sujeta y el otro llena el cubo.`); SFX.creak(); return holdFor('caldera', 10000, '¡Sujetando la rueda cerrada!', `¡Sujeto la rueda cerrada! ¡Llena el cubo, ${mateName()}, rápido!`); }
+        hand: async () => { if (pair()) { if (!mateHere()) return say(`La rueda está durísima y en cuanto la suelto vuelve a abrirse sola. Necesito a ${mateName()}: uno la sujeta y el otro llena el cubo.`); SFX.creak(); return holdFor('caldera', 10000, '¡Sujetando la rueda cerrada!', `¡Sujeto la rueda cerrada! ¡Llena el cubo, ${mateName()}, rápido!`); }
           C.ov = { key: 'c_act', i: 3 }; for (let i = 0; i < 3; i++) { SFX.creak(); await wait(220); } C.ov = null;
           if (!F.caldera) { F.caldera = true; SFX.whoosh(); return say('Rueda cerrada. La caldera se va apagando… fsssss.'); }
           if (!F.momia) { F.caldera = false; SFX.whoosh(); return say('La he vuelto a abrir… ¡y vuelve a rugir! A lo mejor no era buena idea con esa momia por aquí.'); }
@@ -1235,7 +1235,7 @@ const ROOMS = {
       { id: 'rejilla', name: 'Rejilla del suelo', exit: true, arrow: 'down', r: [225, 585, 210, 125], at: 330, to: 'r21', ex: 170,
         lock: () => F.rejilla ? false : 'Una rejilla de hierro en el suelo. Pesa una barbaridad; con las manos no puedo.',
         look: () => say(F.rejilla ? 'La rejilla, abierta. Abajo huele a cloaca… y a rata.' : 'Una rejilla en el suelo. De abajo sale un brillo verde y olor a cloaca.'),
-        use: { escoba: async () => { if (F.rejilla) return; if (duo() && !mateHolding('rejilla')) return say(`Ni con la escoba se mueve. Entre dos sí: si ${mateName()} tira de la rejilla, yo hago palanca.`); await useAnim(600); SFX.clank(); await wait(250); SFX.thud(); shake(12); F.rejilla = true; await say('¡Con el palo de la escoba como palanca! La rejilla está abierta.'); } } },
+        use: { escoba: async () => { if (F.rejilla) return; if (pair() && !mateHolding('rejilla')) return say(`Ni con la escoba se mueve. Entre dos sí: si ${mateName()} tira de la rejilla, yo hago palanca.`); await useAnim(600); SFX.clank(); await wait(250); SFX.thud(); shake(12); F.rejilla = true; await say('¡Con el palo de la escoba como palanca! La rejilla está abierta.'); } } },
       { id: 'escotilla', name: 'Escotilla del escenario', exit: true, arrow: 'up', r: [500, 0, 260, 110], at: 630, to: 'r15', ex: 220 },
       { id: 'escala', name: 'Escalera', r: [500, 110, 260, 300], at: 630, look: () => say('Una escalera que sube hasta una escotilla con luz. Arriba se oye música de teatro… y una risa de gato.'), hand: () => say('Para subir, mejor voy directa a la escotilla.') },
       { id: 'baul1', name: 'Baúl grande', r: [945, 315, 110, 100], at: 990, look: () => say('Un baúl enorme con cadenas. Por la cerradura se ve… ¿confeti?'), hand: () => say('Cerrado a cal y canto. No tiene ni cerradura normal.'), mouth: () => say('¿Hola? ¿Hay alguien dentro? … Mejor que no.') },
@@ -1484,7 +1484,7 @@ function hint() {
     [!F.gav, MONS.gav.r],
     [!F.movil, MONS.phone.r],
     [!F.llave2, 'Lo que brilla en el suelo es tuyo.'],
-    [duo() && !F.muneca && F.cajaOpen, 'La caja de música está atascada: uno la sujeta (tócala) y el otro le da cuerda mientras la muñeca no mira.'],
+    [pair() && !F.muneca && F.cajaOpen, 'La caja de música está atascada: uno la sujeta (tócala) y el otro le da cuerda mientras la muñeca no mira.'],
     [!F.muneca, MONS.doll.r],
     [!F.llave3, 'Quien duerme no vigila lo que lleva al cuello.'],
     [!F.escalera, 'Una máscara abre la puerta del teatro.'],
@@ -1500,25 +1500,25 @@ function hint() {
     [!F.chicle, 'Una moneda, una ruedecita, una bola de colores.'],
     [!F.payaso && !has('chicle_mascado'), 'Duro no pega. ¿Cómo se ablanda un chicle?'],
     [!F.payaso, MONS.payaso.r],
-    [duo() && !F.momia, 'La rueda de la caldera se abre sola: uno la sujeta cerrada y el otro llena el cubo en el grifo… y a por la momia.'],
-    [!duo() && !F.caldera, 'Antes de llenar nada, calma al dragón de cobre.'],
+    [pair() && !F.momia, 'La rueda de la caldera se abre sola: uno la sujeta cerrada y el otro llena el cubo en el grifo… y a por la momia.'],
+    [!pair() && !F.momia && !F.caldera, 'Antes de llenar nada, calma al dragón de cobre.'],
     [!F.momia, MONS.momia.r],
     [!F.cerillas, 'Detrás de la momia guardaban algo pequeño… y muy útil a oscuras.'],
     [!F.coco, MONS.coco.r],
     [!F.tijeras, 'Algo dorado brilla en el banco de trabajo.'],
-    [duo() && !F.rejilla, 'La rejilla pesa para dos: uno tira (pulsa la rejilla) y el otro hace palanca con la escoba a la vez.'],
+    [pair() && !F.rejilla, 'La rejilla pesa para dos: uno tira (pulsa la rejilla) y el otro hace palanca con la escoba a la vez.'],
     [!F.rejilla, 'Bajo el escenario hay una rejilla que pesa una barbaridad. Un palo largo hace de palanca.'],
     [!F.rey2 && !has('pizza_quemada') && (has('pizza') || has('pizza_cortada')), 'Esa pizza puede volver al horno de la cocina… y si te despistas, se queda negra como el carbón.'],
     [!F.rey2 && !has('pizza_quemada'), MONS.rey2.r],
     [!F.rey2, 'Ya tienes su «pastel de chocolate». Llévaselo a Su Majestad.'],
     [!F.disco && !F.partitura, 'Bajo el escenario, un baúl pequeño guarda un papel viejo.'],
     [!F.disco, MONS.skulls.r],
-    [!F.vaho, duo() ? 'En el vestuario, el espejo esconde algo que solo el vapor revela. El grifo de la caldera da agua hirviendo si nadie sujeta la rueda.' : 'En el vestuario, el espejo esconde algo que solo el vapor revela. El dragón de cobre de la lavandería puede volver a rugir.'],
+    [!F.vaho, pair() ? 'En el vestuario, el espejo esconde algo que solo el vapor revela. El grifo de la caldera da agua hirviendo si nadie sujeta la rueda.' : 'En el vestuario, el espejo esconde algo que solo el vapor revela. El dragón de cobre de la lavandería puede volver a rugir.'],
     [!F.baul, 'El vaho escribió números al revés. Léelos como los leería el gato: en un espejo.'],
     [!F.llaveJaula && has('disfraz'), 'Un disfraz en el bolsillo no engaña a nadie. Póntelo (úsalo contigo).'],
     [!F.llaveJaula && !F.discoPuesto, 'El cerdo quiere oír la canción del jefe. El gramófono necesita un disco… y algo de punta cuadrada.'],
     [!F.llaveJaula, MONS.pig.r],
-    [duo() && !F.gato, 'El gato no quita ojo a sus hilos: uno le grita (háblale) para distraerlo y el otro corta con las tijeras.'],
+    [pair() && !F.gato, 'El gato no quita ojo a sus hilos: uno le grita (háblale) para distraerlo y el otro corta con las tijeras.'],
     [!F.gato, MONS.cat.r],
     [!F.jaula, 'Martín está muy alto. Algo largo que antes volaba te ayudará.'],
     [!F.candado, 'El candado tiene forma de gato. Su llave la guardaba el matón.'],
@@ -1531,6 +1531,8 @@ let MODE = 'solo', CH = 'c', HOST = false, CODE = '', NETNS = null, GR = null, M
 const LOCALK = new Set(['horno', 'hornoT', 'pizza', 'pizzas', 'desafina', 'disfraz', 'toc', 'intro15', 'rey2intro', 'pigIntro']);
 const CHN = { c: 'Carmen', g: 'Guille' };
 const duo = () => MODE === 'duo';
+// puzles a dos solo si el compañero está conectado; si se va, se juegan como en solitario
+const pair = () => duo() && !!mate();
 function ck(key) { if (CH === 'g' && key && key.startsWith('c_')) { const g = 'g_' + key.slice(2); if (IMG[g]) return g; return key === 'c_death' ? 'g_death' : 'g_act'; } return key; }
 function mate() { if (!GR) return null; try { return GR.peers().find(p => !p.sameTab && p.presence && p.presence.ch) || null; } catch (e) { return null; } }
 const mateHere = () => { const m = mate(); return !!(m && m.presence.room === S.room && !m.presence.dead); };
@@ -1612,11 +1614,20 @@ async function netConnect(code) {
   GR.onPeers(ch => { const me = ch.peers.find(p => p.sameTab); if (me) ME = me.peer; if (ch.joined.some(p => !p.sameTab) && HOST) netSendFlags(); if (ch.left.some(p => !p.sameTab) && G.playing) LABEL = { text: `${mateName()} se ha desconectado`, until: performance.now() + 3000 }; });
   return null;
 }
-function netLeave() { try { GR && GR.leave(); } catch (e) {} GR = null; MODE = 'solo'; CH = 'c'; HOST = false; NETSYNCED = false; }
+let MATEINV = null, MATEGONE = null;
+function netWatchMate() {
+  const m = mate(); if (m) { MATEINV = Array.isArray(m.presence.inv) ? m.presence.inv.filter(i => ITEMS[i]) : MATEINV; MATEGONE = null; return; }
+  if (!MATEINV || !MATEINV.length) return; if (!MATEGONE) { MATEGONE = performance.now(); return; }
+  if (performance.now() - MATEGONE < 8000) return;
+  const got = MATEINV.filter(i => !has(i)); got.forEach(i => { if (S.inv.length < 12) S.inv.push(i); }); MATEINV = null; MATEGONE = null;
+  if (got.length) { SFX.pick(); LABEL = { text: `${mateName()} se ha ido: te quedas con sus cosas`, until: performance.now() + 4000 }; save(); }
+}
+function netLeave() { try { GR && GR.leave(); } catch (e) {} GR = null; MATEINV = null; MATEGONE = null; MODE = 'solo'; CH = 'c'; HOST = false; NETSYNCED = false; }
 function netTick(dt) {
   if (!GR || !G.playing) return;
-  const st = C.last || {}; const p = { ch: CH, host: HOST, room: S.room, x: Math.round(C.x), k: st.k || ck('c_act'), i: st.i || 0, f: st.f ? 1 : 0, vis: C.vis ? 1 : 0, dead: G.dead ? 1 : 0, hold: G.hold ? G.hold.k : null, say: NETSAY ? NETSAY.t : null, sayN: NETSAYN, ds: F.disfraz ? 1 : 0 };
+  const st = C.last || {}; const p = { ch: CH, host: HOST, room: S.room, x: Math.round(C.x), k: st.k || ck('c_act'), i: st.i || 0, f: st.f ? 1 : 0, vis: C.vis ? 1 : 0, dead: G.dead ? 1 : 0, hold: G.hold ? G.hold.k : null, inv: S.inv.slice(0, 12), say: NETSAY ? NETSAY.t : null, sayN: NETSAYN, ds: F.disfraz ? 1 : 0 };
   const js = JSON.stringify(p); if (js !== LASTPRES) { LASTPRES = js; GR.presence(p).catch(() => {}); }
+  netWatchMate();
   NETT += dt; if (NETDIRTY && NETT > 0.25 || NETT > (HOST ? 2.5 : 5)) { NETT = 0; NETDIRTY = false; netSendFlags(); }
 }
 const PSAY = {};
@@ -1980,12 +1991,14 @@ cv.addEventListener('contextmenu', e => { e.preventDefault(); sel = null; MENU =
 document.addEventListener('keydown', e => { if ((e.key === 'm' || e.key === 'M') && G.playing && !G.cut && !G.dead && $('pause').hidden && $('final').hidden) { if ($('mapov').hidden) $('bMap').onclick(); else $('mapov').hidden = true; return; } if (e.key === 'Escape' && !$('mapov').hidden) { $('mapov').hidden = true; return; } if (e.key === 'Escape') { if (sel || MENU) { sel = null; MENU = null; } else if (G.playing) setPause($('pause').hidden); } if ((e.key === ' ' || e.key === 'Enter') && BUB && G.playing) { endBubble(); e.preventDefault(); } });
 
 function fit() {
-  const wrap = $('wrap'); const aw = window.innerWidth - 32, ah = window.innerHeight;
+  const wrap = $('wrap'); const vv = window.visualViewport, de = document.documentElement;
+  const vw = Math.min(de.clientWidth || innerWidth, vv ? vv.width : innerWidth), vh = Math.min(de.clientHeight || innerHeight, vv ? vv.height : innerHeight);
+  const aw = vw - 32, ah = vh;
   const s = Math.max(0.1, Math.min(aw / 1280, ah / 860));
   wrap.style.width = 1280 * s + 'px'; wrap.style.height = 860 * s + 'px'; wrap.style.setProperty('--u', s + 'px');
-  $('rotate').classList.toggle('show', window.innerHeight > window.innerWidth);
+  $('rotate').classList.toggle('show', vh > vw);
 }
-window.addEventListener('resize', fit);
+window.addEventListener('resize', fit); window.addEventListener('orientationchange', () => setTimeout(fit, 300)); if (window.visualViewport) visualViewport.addEventListener('resize', fit);
 
 function resetState() { S.room = 'r1'; S.inv = []; S.f = {}; S.fv = {}; S.gid = null; S.x = 560; G.deaths = 0; G.t0 = Date.now(); sel = null; NETAP = {}; }
 function startPlaying() { G.playing = true; $('title').hidden = true; $('hud').hidden = false; }
@@ -2047,7 +2060,7 @@ $('bMenu').onclick = () => { save(); setPause(false); stopMusic(); G.playing = f
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.playing && !G.cut) setPause(true); });
 $('bMap').onclick = () => { if (G.cut || G.dead) return; MENU = null; sel = null; $('mapov').hidden = false; drawMap(); };
 $('mapClose').onclick = () => { $('mapov').hidden = true; };
-$('bHint').onclick = () => { if (G.cut) return; $('hintText').textContent = hint(); $('hintBox').hidden = false; };
+$('bHint').onclick = () => { if (G.cut) return; $('hintText').innerHTML = hint(); $('hintBox').hidden = false; };
 $('hintClose').onclick = () => { $('hintBox').hidden = true; };
 $('bSound').onclick = () => { au(); setMuted(!muted); };
 $('skip').onclick = () => { G.skip = true; endBubble(); };
