@@ -542,7 +542,7 @@ async function give(id, msg) {
   C.ov = { key: 'c_act', i: 1 }; await wait(320); C.ov = { key: 'c_act', i: 2 }; await wait(520);
   const hp = handPos(); C.ov = null; C.hold = null;
   const idx = has(id) ? S.inv.indexOf(id) : S.inv.length;
-  FLY = { id, x0: hp[0], y0: hp[1], x1: 48 + idx * 100 + 42, y1: 748 + 42, k: 0 };
+  slotFit(); FLY = { id, x0: hp[0], y0: hp[1], x1: SLOT.x0 + idx * (SLOT.s + SLOT.gap) + SLOT.s / 2, y1: SLOT.y + SLOT.s / 2, k: 0 };
   await tween(FLY, 'k', 1, 420, easeIn); FLY = null;
   if (!has(id)) S.inv.push(id); SFX.tick();
   if (msg) await say(msg);
@@ -1609,23 +1609,31 @@ async function netConnect(code) {
   try { GR = await wsJoin('martin-' + code.toLowerCase()); }
   catch (e) { GR = null; return e && e.code === 'no_server' ? 'El modo dúo funciona abriendo el juego desde su enlace del servidor.' : 'No puedo conectar con el servidor. Si es la primera partida del día, espera un minuto (se está despertando) y vuelve a probar.'; }
   GR.on('flags', m => { if (m.sameTab) return; netApply(m.data); });
-  GR.on('give', m => { const d = m.data || {}; if (!ITEMS[d.item]) return; if (m.sameTab) { take(d.item); SFX.pick(); LABEL = { text: `Le has dado ${ITEMS[d.item].n} a ${mateName()}`, until: performance.now() + 2500 }; save(); return; } if (d.to !== ME) return; if (!has(d.item) && S.inv.length < 12) S.inv.push(d.item); SFX.pick(); LABEL = { text: `${mateName()} te ha dado: ${ITEMS[d.item].n}`, until: performance.now() + 3000 }; save(); });
+  GR.on('give', m => { const d = m.data || {}; if (!ITEMS[d.item]) return; if (m.sameTab) { take(d.item); SFX.pick(); LABEL = { text: `Le has dado ${ITEMS[d.item].n} a ${mateName()}`, until: performance.now() + 2500 }; save(); return; } if (d.to !== ME) return; if (!has(d.item)) S.inv.push(d.item); SFX.pick(); LABEL = { text: `${mateName()} te ha dado: ${ITEMS[d.item].n}`, until: performance.now() + 3000 }; save(); });
   GR.on('hello', m => { if (m.sameTab) return; if (HOST) { NETDIRTY = true; netSendFlags(); } });
   GR.onPeers(ch => { const me = ch.peers.find(p => p.sameTab); if (me) ME = me.peer; if (ch.joined.some(p => !p.sameTab) && HOST) netSendFlags(); if (ch.left.some(p => !p.sameTab) && G.playing) LABEL = { text: `${mateName()} se ha desconectado`, until: performance.now() + 3000 }; });
   return null;
 }
 let MATEINV = null, MATEGONE = null;
+// rescate: si el cubo se ha perdido (y ya se cogió), aparece uno nuevo
+const CUBOS = ['cubo', 'cubo_agua', 'cubo_hirviendo'];
+function rescueCubo() {
+  if (!G.playing || G.cut || !S.f.cubo || CUBOS.some(has)) return;
+  if (duo()) { const m = mate(); if (!m) return; const mi = Array.isArray(m.presence.inv) ? m.presence.inv : []; if (CUBOS.some(c => mi.includes(c))) return; }
+  S.inv.unshift('cubo'); SFX.pick(); LABEL = { text: '¡Has recuperado el cubo!', until: performance.now() + 3500 }; save();
+}
+setInterval(() => { try { rescueCubo(); } catch (e) {} }, 3000);
 function netWatchMate() {
   const m = mate(); if (m) { MATEINV = Array.isArray(m.presence.inv) ? m.presence.inv.filter(i => ITEMS[i]) : MATEINV; MATEGONE = null; return; }
   if (!MATEINV || !MATEINV.length) return; if (!MATEGONE) { MATEGONE = performance.now(); return; }
   if (performance.now() - MATEGONE < 8000) return;
-  const got = MATEINV.filter(i => !has(i)); got.forEach(i => { if (S.inv.length < 12) S.inv.push(i); }); MATEINV = null; MATEGONE = null;
+  const got = MATEINV.filter(i => !has(i)); got.forEach(i => S.inv.push(i)); MATEINV = null; MATEGONE = null;
   if (got.length) { SFX.pick(); LABEL = { text: `${mateName()} se ha ido: te quedas con sus cosas`, until: performance.now() + 4000 }; save(); }
 }
 function netLeave() { try { GR && GR.leave(); } catch (e) {} GR = null; MATEINV = null; MATEGONE = null; MODE = 'solo'; CH = 'c'; HOST = false; NETSYNCED = false; }
 function netTick(dt) {
   if (!GR || !G.playing) return;
-  const st = C.last || {}; const p = { ch: CH, host: HOST, room: S.room, x: Math.round(C.x), k: st.k || ck('c_act'), i: st.i || 0, f: st.f ? 1 : 0, vis: C.vis ? 1 : 0, dead: G.dead ? 1 : 0, hold: G.hold ? G.hold.k : null, inv: S.inv.slice(0, 12), say: NETSAY ? NETSAY.t : null, sayN: NETSAYN, ds: F.disfraz ? 1 : 0 };
+  const st = C.last || {}; const p = { ch: CH, host: HOST, room: S.room, x: Math.round(C.x), k: st.k || ck('c_act'), i: st.i || 0, f: st.f ? 1 : 0, vis: C.vis ? 1 : 0, dead: G.dead ? 1 : 0, hold: G.hold ? G.hold.k : null, inv: S.inv.slice(0, 20), say: NETSAY ? NETSAY.t : null, sayN: NETSAYN, ds: F.disfraz ? 1 : 0 };
   const js = JSON.stringify(p); if (js !== LASTPRES) { LASTPRES = js; GR.presence(p).catch(() => {}); }
   netWatchMate();
   NETT += dt; if (NETDIRTY && NETT > 0.25 || NETT > (HOST ? 2.5 : 5)) { NETT = 0; NETDIRTY = false; netSendFlags(); }
@@ -1887,7 +1895,9 @@ function drawLabel() {
   ctx.save(); ctx.font = "28px 'Patrick Hand',cursive"; ctx.textAlign = 'center'; const w = Math.min(1100, ctx.measureText(txt).width + 40);
   rr(640 - w / 2, 14, w, 42, 21, 'rgba(0,0,0,.72)', null); ctx.fillStyle = '#fff8e8'; ctx.fillText(txt, 640, 45, 1080); ctx.restore();
 }
-const SLOT = { x0: 48, y: 748, s: 84, gap: 16 };
+const SLOT = { x0: 48, y: 748, s: 84, gap: 16, n: 12 };
+// el inventario se encoge para que siempre se vean todos los objetos
+function slotFit() { const n = Math.max(12, S.inv.length); if (n === SLOT.n) return; const total = 12 * 84 + 11 * 16; SLOT.n = n; SLOT.gap = n > 12 ? 8 : 16; SLOT.s = Math.floor((total - SLOT.gap * (n - 1)) / n); SLOT.y = 748 + Math.round((84 - SLOT.s) / 2); }
 function drawItem(id, x, y, s) {
   const it = ITEMS[id]; const f = fr('it_' + id, 0);
   if (f) { const k = Math.min(s / f.w, s / f.h) * 0.82; ctx.drawImage(f.im, x - f.w * k / 2, y - f.h * k / 2, f.w * k, f.h * k); return; }
@@ -1899,8 +1909,8 @@ function drawItem(id, x, y, s) {
 }
 function drawBar(t) {
   ctx.fillStyle = '#0c090f'; ctx.fillRect(0, H, W, BAR); ctx.fillStyle = '#000'; ctx.fillRect(0, H, W, 6);
-  rr(SLOT.x0 - 18, SLOT.y - 16, 12 * (SLOT.s + SLOT.gap) - SLOT.gap + 36, SLOT.s + 32, 18, '#000', '#000', 2);
-  for (let i = 0; i < 12; i++) {
+  slotFit(); rr(SLOT.x0 - 18, 732, 12 * 84 + 11 * 16 + 36, 116, 18, '#000', '#000', 2);
+  for (let i = 0; i < SLOT.n; i++) {
     const x = SLOT.x0 + i * (SLOT.s + SLOT.gap), y = SLOT.y; const id = S.inv[i];
     rr(x, y, SLOT.s, SLOT.s, 8, id && id === sel ? '#ffd34d' : '#f7f2e6', '#000', 4);
     if (id) drawItem(id, x + SLOT.s / 2, y + SLOT.s / 2, SLOT.s);
@@ -1960,7 +1970,7 @@ function pos(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX -
 function onCarmen(x, y) { return C.vis && Math.abs(x - C.x) < 75 && y > C.feet - 300 && y < C.feet + 10; }
 function invClick(x, y) {
   const i = Math.floor((x - SLOT.x0) / (SLOT.s + SLOT.gap)); const inX = (x - SLOT.x0) - i * (SLOT.s + SLOT.gap);
-  if (i < 0 || i > 11 || inX > SLOT.s || y < SLOT.y - 10 || y > SLOT.y + SLOT.s + 10) { sel = null; return; }
+  if (i < 0 || i >= SLOT.n || inX > SLOT.s || y < SLOT.y - 10 || y > SLOT.y + SLOT.s + 10) { sel = null; return; }
   const id = S.inv[i]; if (!id) { sel = null; return; }
   if (sel === id) { sel = null; return; }
   if (sel) { const a = sel; sel = null; const key = [a, id].sort().join('+'); runBusy(async () => { checkpoint(); if (COMBOS[key]) await COMBOS[key](); else await say(pick(['Eso no se puede combinar.', 'No pegan ni con cola.', 'No, eso no va junto.'])); }); return; }
